@@ -109,7 +109,7 @@ describe('Telemetry', () => {
     expect(telemetry['events']).toHaveLength(0);
   });
 
-  it('should send only the "telemetry disabled" event when telemetry is disabled and send is called', async () => {
+  it('should not send any data when telemetry is disabled and send is called', async () => {
     process.env.PROMPTFOO_DISABLE_TELEMETRY = '1';
     jest.mocked(fetchWithTimeout).mockResolvedValue({ ok: true } as any);
 
@@ -117,27 +117,12 @@ describe('Telemetry', () => {
     telemetry.record('eval_ran', { foo: 'bar' });
     await telemetry.send();
 
-    expect(fetchWithTimeout).toHaveBeenCalledWith(
-      'https://api.promptfoo.dev/telemetry',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([
-          {
-            event: 'feature_used',
-            packageVersion: '1.0.0',
-            properties: { feature: 'telemetry disabled' },
-          },
-        ]),
-      },
-      1000,
-    );
+    // Should not make any network calls when telemetry is disabled
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
     expect(telemetry['events']).toHaveLength(0);
   });
 
-  it('should send telemetry disabled event only once', async () => {
+  it('should never send any data when telemetry is disabled regardless of multiple calls', async () => {
     process.env.PROMPTFOO_DISABLE_TELEMETRY = '1';
     jest.mocked(fetchWithTimeout).mockResolvedValue({ ok: true } as any);
 
@@ -145,31 +130,27 @@ describe('Telemetry', () => {
     telemetry.record('eval_ran', { foo: 'bar' });
     await telemetry.send();
 
-    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
-    expect(fetchWithTimeout).toHaveBeenCalledWith(
-      'https://api.promptfoo.dev/telemetry',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify([
-          {
-            event: 'feature_used',
-            packageVersion: '1.0.0',
-            properties: { feature: 'telemetry disabled' },
-          },
-        ]),
-      },
-      1000,
-    );
+    // Should not make any network calls when telemetry is disabled
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
 
     // Record another event and send again
     telemetry.record('command_used', { command: 'test' });
     await telemetry.send();
 
-    // Ensure fetchWithTimeout was not called again
-    expect(fetchWithTimeout).toHaveBeenCalledTimes(1);
+    // Ensure fetchWithTimeout was never called
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
+    expect(telemetry['events']).toHaveLength(0);
+  });
+
+  it('should not save consent when telemetry is disabled', async () => {
+    process.env.PROMPTFOO_DISABLE_TELEMETRY = '1';
+    jest.mocked(fetchWithTimeout).mockResolvedValue({ ok: true } as any);
+
+    const telemetry = new Telemetry();
+    await telemetry.saveConsent('test@example.com', { source: 'test' });
+
+    // Should not make any network calls when telemetry is disabled
+    expect(fetchWithTimeout).not.toHaveBeenCalled();
   });
 
   it('should include isRedteam: true when redteam configuration is present', () => {

@@ -109,6 +109,12 @@ export class Telemetry {
   }
 
   async send(): Promise<void> {
+    // Early return if telemetry is disabled - prevent all network calls
+    if (this.disabled) {
+      this.events = []; // Clear events without sending
+      return;
+    }
+
     if (this.events.length > 0) {
       if (getEnvBool('PROMPTFOO_TELEMETRY_DEBUG')) {
         logger.debug(
@@ -141,6 +147,12 @@ export class Telemetry {
    * This is a separate endpoint to save consent used only for redteam data synthesis for "harmful" plugins.
    */
   async saveConsent(email: string, metadata?: Record<string, string>): Promise<void> {
+    // Early return if telemetry is disabled - prevent all network calls
+    if (this.disabled) {
+      logger.debug('Telemetry disabled - skipping consent save');
+      return;
+    }
+
     try {
       const response = await fetchWithTimeout(
         CONSENT_ENDPOINT,
